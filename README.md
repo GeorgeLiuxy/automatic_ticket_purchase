@@ -1,75 +1,71 @@
-# 已停止维护
-大部分购买方式已迁移至手机端，需配合抓包处理。暂无更新计划。
-
-# 预定场地脚本 V2.1
-更新
-- 增加选座购买，暂时只支持抢购指定价格下的座位，且暂不支持连坐购买。
-
-# 预定场地脚本 V2.0
-在学习到接口相关知识后，决定改造之前的脚本。
-
-## 功能介绍
-之前的版本通过按钮操作，还要等待页面元素加载，效率低下。
-此版本仅需登录时用到页面，通过selenium打开页面进行登录。其余操作均通过requests进行请求。
-
-ps: 暂不支持选座购买。
-
-其流程图如下:
-
-<img src="images/flow_chart.jpeg" width="50%" height="50%" />
 
 ## 准备工作
 ### 1. 配置环境
+安装所需要的环境
+```shell
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+brew install python@3.9
+```
+1.1 安装 Python 3.9
+   你可以使用 Homebrew 来安装 Python 3.9。
 
-1.1 安装所需要的环境
+如果还没有安装 Homebrew，可以通过以下命令安装：
+```shell
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+```
+安装完 Homebrew 后，使用以下命令安装 Python 3.9：
+```shell
+brew install python@3.9
+```
+安装完成后，你可以检查 Python 3.9 是否安装成功：
+```shell
+python3.9 --version
+```
+1.2 创建虚拟环境
+   首先，选择一个你希望创建虚拟环境的目录，并导航到该目录。例如：
+```shell
+mkdir ~/myproject
+cd ~/myproject
+```
+接下来，使用 python3.9 创建虚拟环境：
+```shell
+python3.9 -m venv venv
+```
+这将在 myproject 目录下创建一个名为 venv 的虚拟环境目录。
+
+1.3 激活虚拟环境
+   要激活刚创建的虚拟环境，运行以下命令：
+```shell
+source venv/bin/activate
+```
+激活后，你的终端提示符会变为 (venv)，表示你已经在虚拟环境中。
+
+1.4 使用虚拟环境
+   在虚拟环境中，你可以使用 pip 来安装所需的 Python 包。例如：
 ```shell
 pip install -r requirements.txt
 ```
+安装包后，它们会被安装在虚拟环境的 venv 目录中，而不会影响系统的全局 Python 环境。
 
-1.2 需要下载与系统安装对应的ChromeDriver驱动并配置(也可以改用其他浏览器驱动)，
-
+### 2. 配置ChromeDriver
+需要下载与系统安装对应的ChromeDriver驱动并配置(也可以改用其他浏览器驱动)，
 下载地址: http://chromedriver.storage.googleapis.com/index.html
+驱动地址放到本地路径下：/Volumes/software/chromedriver-mac-arm64/chromedriver
+授权驱动执行权限
 
-1.3 配置驱动路径，默认在项目根目录下。
-
-例如：windows系统下，则重命名下载的chromedriver，将其重命名为chromedriver_windows
-```python
-def account_login():
-    if platform.system().lower() == 'linux':
-        chromedriver = os.path.join(os.getcwd(), 'chromedriver_linux')
-    elif platform.system().lower() == 'windows':
-        chromedriver = os.path.join(os.getcwd(), 'chromedriver_windows')
-    else:
-        chromedriver = os.path.join(os.getcwd(), 'chromedriver_mac')
-```
-
-### 2. 运行
-2.1 若采取账号方式，修改代码中下面的信息，进行抢票。
-
-item_id根据地区来确定,每一个城市对应不同的item_id。选择相应地区后将箭头指向的item_id填写到函数内。
-```text
-def __init__(self):
-    ...
-    # 若选择账号登录方式，则需要填写
-    self.login_id: str = 'account'          # 小智网登录账户名
-    self.login_password: str = 'password'   # 小智网登录密码
-    # 以下为抢票必须的参数
-    self.item_id: int = 610820299671        # 商品id
-    self.viewer: list = ['viewer1']         # 在小智网已填写的观影人
-    self.buy_nums: int = 1                  # 购买影票数量, 需与观影人数量一致
-    self.ticket_price: int = 180            # 购买指定票价
-```
-![image](images/item_id.png)
-
-2.2 运行
-
-初次登陆没有cookies，默认登录方式为账号密码登录方式，可改成其他方式进行登录，如扫码或短信登录。
 ```shell
-# 默认登录方式
-python Automatic_ticket_purchase.py
-# 指定其他方式登录
-python Automatic_ticket_purchase.py --mode qr
+chmod +x /Volumes/software/chromedriver-mac-arm64/chromedriver
+
 ```
 
+### 3. 运行脚本
+```shell
+python toolsUI.py
+```
 
-免责声明：详见MIT License，此仓库仅用于个人参考学习，但如他人用本仓库代码用于商业用途(鄙视黄牛)，侵犯到小智网利益等，本人不承担任何责任。# automatic_ticket_purchase
+### 4. 运行脚本
+   当你完成开发任务后，可以通过以下命令退出虚拟环境：
+```shell
+deactivate
+```
+这将返回到系统的全局 Python 环境。

@@ -1,11 +1,13 @@
-import sys
 import logging
+import sys
+
 from PyQt5 import QtGui
+from PyQt5.QtCore import QThread, pyqtSignal
 from PyQt5.QtWidgets import (
     QApplication, QWidget, QLabel, QLineEdit, QVBoxLayout, QPushButton, QTextEdit,
     QMessageBox, QListWidget, QHBoxLayout
 )
-from PyQt5.QtCore import Qt, QThread, pyqtSignal
+
 from tools01 import schedule_booking
 
 
@@ -18,8 +20,8 @@ class QTextEditLogger(logging.Handler):
     def emit(self, record):
         msg = self.format(record)
         self.text_edit.append(msg + '\n')
-        self.text_edit.moveCursor(QtGui.QTextCursor.End)  # 将光标移动到文本末尾
-        self.text_edit.ensureCursorVisible()  # 确保光标可见，自动滚动
+        self.text_edit.moveCursor(QtGui.QTextCursor.End)
+        self.text_edit.ensureCursorVisible()
 
 
 # 预定任务的线程类
@@ -27,6 +29,7 @@ class BookingThread(QThread):
     log_signal = pyqtSignal(str)
     error_signal = pyqtSignal(str)
     success_signal = pyqtSignal(str)
+    stop_signal = pyqtSignal()
 
     def __init__(self, accounts, court_type, venue_name, target_time, weekday, booking_time):
         super().__init__()
@@ -36,20 +39,27 @@ class BookingThread(QThread):
         self.target_time = target_time
         self.weekday = weekday
         self.booking_time = booking_time
+        self._is_running = True
 
     def run(self):
+        self.success_signal.emit("预定任务已启动")
         try:
-            # 此处调用 schedule_booking 函数 (你需要自行定义此函数)
-            self.success_signal.emit("预定任务已启动")
-            schedule_booking(self.accounts, self.court_type, self.venue_name, self.target_time, self.weekday, self.booking_time)
+            while self._is_running:
+                schedule_booking(self.accounts, self.court_type, self.venue_name, self.target_time, self.weekday, self.booking_time)
+                self.log_signal.emit("预定任务执行成功")
+                break
         except Exception as e:
             self.error_signal.emit(f"预定过程中出错: {e}")
+
+    def stop(self):
+        self._is_running = False
+
 
 class BookingApp(QWidget):
     def __init__(self):
         super().__init__()
         self.init_ui()
-        self.booking_thread = None  # 初始化线程变量
+        self.booking_thread = None
 
     def init_ui(self):
         self.setWindowTitle("场地预定系统")
@@ -64,13 +74,13 @@ class BookingApp(QWidget):
 
         self.username_input = QLineEdit()
         self.username_input.setPlaceholderText("用户名")
-        self.username_input.setText("cherilyn.li")  # 设置默认值
+        self.username_input.setText("cherilyn.li")
         account_controls.addWidget(self.username_input)
 
         self.password_input = QLineEdit()
         self.password_input.setEchoMode(QLineEdit.Password)
         self.password_input.setPlaceholderText("密码")
-        self.password_input.setText("TuTu121866@")  # 设置默认值
+        self.password_input.setText("TuTu121866@")
         account_controls.addWidget(self.password_input)
 
         add_account_button = QPushButton("添加账户")
@@ -85,32 +95,31 @@ class BookingApp(QWidget):
 
         self.court_type_label = QLabel('场地类型:')
         self.court_type_input = QLineEdit()
-        self.court_type_input.setText("网球")  # 设置默认值
+        self.court_type_input.setText("网球")
         layout.addWidget(self.court_type_label)
         layout.addWidget(self.court_type_input)
 
         self.venue_name_label = QLabel('场地名称:')
         self.venue_name_input = QLineEdit()
-        self.venue_name_input.setText("东区网球场")  # 设置默认值
+        self.venue_name_input.setText("东区网球场")
         layout.addWidget(self.venue_name_label)
         layout.addWidget(self.venue_name_input)
 
         self.target_time_label = QLabel('预定时间:')
         self.target_time_input = QLineEdit()
-        self.target_time_input.setText("16:00")  # 设置默认值
+        self.target_time_input.setText("16:00")
         layout.addWidget(self.target_time_label)
         layout.addWidget(self.target_time_input)
 
         self.weekday_label = QLabel('星期几 (1-7):')
         self.weekday_input = QLineEdit()
-        self.weekday_input.setText("3")  # 设置默认值
+        self.weekday_input.setText("3")
         layout.addWidget(self.weekday_label)
         layout.addWidget(self.weekday_input)
 
-        # 新增抢票时间输入框
         self.booking_time_label = QLabel('抢票时间:')
         self.booking_time_input = QLineEdit()
-        self.booking_time_input.setText("12:00")  # 设置默认值为中午12:00
+        self.booking_time_input.setText("12:00")
         layout.addWidget(self.booking_time_label)
         layout.addWidget(self.booking_time_input)
 
@@ -128,7 +137,7 @@ class BookingApp(QWidget):
         logger = logging.getLogger()
         logger.setLevel(logging.INFO)
         handler = QTextEditLogger(self.log_output)
-        formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')  # 修正为 levelname
+        formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
         handler.setFormatter(formatter)
         logger.addHandler(handler)
 
@@ -143,7 +152,6 @@ class BookingApp(QWidget):
         account_info = f"{username}:{password}"
         self.account_list.addItem(account_info)
 
-        # 清空输入框
         self.username_input.clear()
         self.password_input.clear()
 
@@ -171,12 +179,10 @@ class BookingApp(QWidget):
             QMessageBox.warning(self, "输入错误", "请填写所有字段")
             return
 
-        # 启动新的预定线程前，检查并终止旧线程
         if self.booking_thread and self.booking_thread.isRunning():
-            self.booking_thread.terminate()
+            self.booking_thread.stop()
             self.booking_thread.wait()
 
-        # 创建并启动预定线程
         self.booking_thread = BookingThread(accounts, court_type, venue_name, target_time, weekday, booking_time)
         self.booking_thread.log_signal.connect(self.log_output.append)
         self.booking_thread.error_signal.connect(lambda msg: logging.error(msg))
@@ -184,9 +190,8 @@ class BookingApp(QWidget):
         self.booking_thread.start()
 
     def closeEvent(self, event):
-        # 窗口关闭时，确保线程终止
         if self.booking_thread and self.booking_thread.isRunning():
-            self.booking_thread.terminate()
+            self.booking_thread.stop()
             self.booking_thread.wait()
         event.accept()
 
