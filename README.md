@@ -1,11 +1,11 @@
 # 已停止维护
 大部分购买方式已迁移至手机端，需配合抓包处理。暂无更新计划。
 
-# 大麦抢票脚本 V2.1
+# 预定场地脚本 V2.1
 更新
 - 增加选座购买，暂时只支持抢购指定价格下的座位，且暂不支持连坐购买。
 
-# 大麦抢票脚本 V2.0
+# 预定场地脚本 V2.0
 在学习到接口相关知识后，决定改造之前的脚本。
 
 ## 功能介绍
@@ -51,11 +51,11 @@ item_id根据地区来确定,每一个城市对应不同的item_id。选择相�
 def __init__(self):
     ...
     # 若选择账号登录方式，则需要填写
-    self.login_id: str = 'account'          # 大麦网登录账户名
-    self.login_password: str = 'password'   # 大麦网登录密码
+    self.login_id: str = 'account'          # 小智网登录账户名
+    self.login_password: str = 'password'   # 小智网登录密码
     # 以下为抢票必须的参数
     self.item_id: int = 610820299671        # 商品id
-    self.viewer: list = ['viewer1']         # 在大麦网已填写的观影人
+    self.viewer: list = ['viewer1']         # 在小智网已填写的观影人
     self.buy_nums: int = 1                  # 购买影票数量, 需与观影人数量一致
     self.ticket_price: int = 180            # 购买指定票价
 ```
@@ -72,4 +72,4 @@ python Automatic_ticket_purchase.py --mode qr
 ```
 
 
-免责声明：详见MIT License，此仓库仅用于个人参考学习，但如他人用本仓库代码用于商业用途(鄙视黄牛)，侵犯到大麦网利益等，本人不承担任何责任。# automatic_ticket_purchase
+免责声明：详见MIT License，此仓库仅用于个人参考学习，但如他人用本仓库代码用于商业用途(鄙视黄牛)，侵犯到小智网利益等，本人不承担任何责任。# automatic_ticket_purchase
