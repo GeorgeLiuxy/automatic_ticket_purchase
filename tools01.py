@@ -13,18 +13,41 @@ from selenium.common.exceptions import NoSuchElementException, TimeoutException
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.common.desired_capabilities import DesiredCapabilities
+
+
 
 # 设置日志
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 
-def setup_driver():
+def setup_driver(low_flow):
     chromedriver_path = "/Volumes/software/chromedriver-mac-arm64/chromedriver"
     option = webdriver.ChromeOptions()
-    option.add_experimental_option('excludeSwitches', ['enable-automation'])
-    option.add_argument('--disable-blink-features=AutomationControlled')
-    driver = webdriver.Chrome(executable_path=chromedriver_path, options=option)
+    if low_flow:
+        capabilities = DesiredCapabilities.CHROME.copy()
+        capabilities['goog:loggingPrefs'] = {'performance': 'ALL'}
+        option.add_argument('--disable-blink-features=AutomationControlled')
+        option.add_argument('--headless')  # 如果不需要显示界面，可以使用无头模式
+        option.add_argument('--disable-gpu')
+        option.add_argument('--disable-extensions')
+        option.add_argument('--no-sandbox')
+        option.add_argument('--disable-dev-shm-usage')
+        driver = webdriver.Chrome(executable_path=chromedriver_path, options=option, desired_capabilities=capabilities)
+        driver.request_interceptor = block_request
+    else:
+        option.add_experimental_option('excludeSwitches', ['enable-automation'])
+        option.add_argument('--disable-blink-features=AutomationControlled')
+        driver = webdriver.Chrome(executable_path=chromedriver_path, options=option)
     return driver
+
+
+def block_request(request):
+    blocked_resources = ['*.png', '*.jpg', '*.jpeg', '*.gif', '*.css', '*.js']
+    for resource in blocked_resources:
+        if resource in request['url']:
+            return True
+    return False
 
 
 def solve_captcha(driver):
@@ -157,7 +180,6 @@ def select_venue(driver, venue_name):
 
 def attempt_booking(driver, target_time):
     # 假设之前已经登录并选择了日期，这里直接查找并点击指定时间段的可选场地
-
     if find_and_click_first_available_seat_for_time(driver, target_time):
         # 继续执行后续操作，如点击“立即下单”按钮
         return click_order_button(driver)
@@ -180,8 +202,6 @@ def click_order_button(driver):
         print("checkpoint 2 ~~~")
         # 等待对话框出现
         return accept_terms_and_submit_order(driver)
-
-
     except TimeoutException:
         logging.info("未能在指定时间内找到“立即下单”按钮。")
         return False
@@ -213,7 +233,7 @@ def accept_terms_and_submit_order(driver):
             EC.element_to_be_clickable((By.XPATH,
                                         "//div[@role='dialog']//button[contains(@class, 'el-button--primary') and contains(., '提交订单')]"))
         )
-        submit_button.click()
+        # submit_button.click() TODO ~
         logging.info("已点击“提交订单”按钮。")
 
         return True
@@ -227,7 +247,11 @@ def accept_terms_and_submit_order(driver):
 
 
 def run_booking_process(driver, target_time, weekday):
-    select_next_wednesday_date(driver, weekday)
+    if select_next_wednesday_date(driver, weekday):
+        logging.info(f"已选择日期: {get_next_wednesday_date(weekday)}")
+    else:
+        logging.error("选择日期失败")
+        return False
     return attempt_booking(driver, target_time)
 
 
@@ -249,6 +273,7 @@ def select_next_wednesday_date(driver, weekday):
     next_wednesday_date = get_next_wednesday_date(weekday)
     # 目标日期的ID
     target_date_id = "tab-" + str(next_wednesday_date)
+    result = False
     try:
         # 等待“立即下单”按钮出现
         target_date_tab = WebDriverWait(driver, 10).until(
@@ -257,12 +282,16 @@ def select_next_wednesday_date(driver, weekday):
         )
         target_date_tab.click()
         logging.info(f"已选择日期: {next_wednesday_date}")
+        result = True
     except NoSuchElementException:
         logging.warning(f"未找到日期: {next_wednesday_date}，重新检查页面...")
+        result = False
+    finally:
+        return result
 
 
-def main(account, court_type, venue_name, target_time, weekday, booking_time):
-    driver = setup_driver()
+def main(account, court_type, venue_name, target_time, weekday, booking_time, low_flow_mode):
+    driver = setup_driver(low_flow_mode)
     login_successful = login(account, driver)
     if login_successful:
         select_court_type(driver, court_type)
@@ -294,11 +323,10 @@ def main(account, court_type, venue_name, target_time, weekday, booking_time):
     driver.quit()  # 记得在任务结束后关闭浏览器
 
 
-
-def schedule_booking(accounts, court_type, venue_name, target_time, weekday, booking_time):
+def schedule_booking(accounts, court_type, venue_name, target_time, weekday, booking_time, low_flow_mode):
     with ThreadPoolExecutor(max_workers=min(3, len(accounts))) as executor:
         for account in accounts:
-            executor.submit(main, account, court_type, venue_name, target_time, weekday, booking_time)
+            executor.submit(main, account, court_type, venue_name, target_time, weekday, booking_time, low_flow_mode)
 
 
 def find_and_click_first_available_seat_for_time(driver, target_time):
@@ -359,4 +387,4 @@ if __name__ == '__main__':
     # param weekday: 目标星期几，1=周一, 2=周二, ..., 7=周日
     # booking_time 12:00
     booking_time = '12:00'
-    schedule_booking(accounts, "网球", "东区网球场", "16:00", "3", booking_time)
+    schedule_booking(accounts, "网球", "东区网球场", "16:00", "1", booking_time, True)
