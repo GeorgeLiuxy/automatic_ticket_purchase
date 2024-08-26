@@ -2,11 +2,11 @@
 ## 准备工作
 ### 1. 配置环境
 安装所需要的环境
-1.1 安装 Python 3.9
-你可以使用 Homebrew 来安装 Python 3.9。
+1.1 安装 Python 3.9.6
+你可以使用 Homebrew 来安装 Python 3.9.6。
 ```shell
 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-brew install python@3.9.2
+brew install python@3.9.6
 ```
 
 如果还没有安装 Homebrew，可以通过以下命令安装：
@@ -15,11 +15,11 @@ brew install python@3.9.2
 ```
 安装完 Homebrew 后，使用以下命令安装 Python 3.9：
 ```shell
-brew install python@3.9
+brew install python@3.9.6
 ```
 安装完成后，你可以检查 Python 3.9 是否安装成功：
 ```shell
-python3.9 --version
+python --version
 ```
 1.2 创建虚拟环境
    首先，选择一个你希望创建虚拟环境的目录，并导航到该目录。例如：
