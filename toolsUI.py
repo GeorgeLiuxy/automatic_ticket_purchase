@@ -5,7 +5,7 @@ from PyQt5 import QtGui
 from PyQt5.QtCore import QThread, pyqtSignal
 from PyQt5.QtWidgets import (
     QApplication, QWidget, QLabel, QLineEdit, QVBoxLayout, QPushButton, QTextEdit,
-    QMessageBox, QListWidget, QHBoxLayout
+    QMessageBox, QListWidget, QHBoxLayout, QCheckBox
 )
 
 from tools01 import schedule_booking
@@ -31,7 +31,7 @@ class BookingThread(QThread):
     success_signal = pyqtSignal(str)
     stop_signal = pyqtSignal()
 
-    def __init__(self, accounts, court_type, venue_name, target_time, weekday, booking_time):
+    def __init__(self, accounts, court_type, venue_name, target_time, weekday, booking_time, low_flow_mode):
         super().__init__()
         self.accounts = accounts
         self.court_type = court_type
@@ -39,13 +39,14 @@ class BookingThread(QThread):
         self.target_time = target_time
         self.weekday = weekday
         self.booking_time = booking_time
+        self.low_flow_mode = low_flow_mode
         self._is_running = True
 
     def run(self):
         self.success_signal.emit("预定任务已启动")
         try:
             while self._is_running:
-                schedule_booking(self.accounts, self.court_type, self.venue_name, self.target_time, self.weekday, self.booking_time)
+                schedule_booking(self.accounts, self.court_type, self.venue_name, self.target_time, self.weekday, self.booking_time, self.low_flow_mode)
                 self.log_signal.emit("预定任务执行成功")
                 break
         except Exception as e:
@@ -123,6 +124,11 @@ class BookingApp(QWidget):
         layout.addWidget(self.booking_time_label)
         layout.addWidget(self.booking_time_input)
 
+        # 添加低流量模式选择的QCheckBox
+        self.low_flow_mode_checkbox = QCheckBox("低流量模式")
+        self.low_flow_mode_checkbox.setChecked(True)  # 默认选中
+        layout.addWidget(self.low_flow_mode_checkbox)
+
         self.start_button = QPushButton('开始预定')
         self.start_button.clicked.connect(self.start_booking)
         layout.addWidget(self.start_button)
@@ -174,6 +180,7 @@ class BookingApp(QWidget):
         target_time = self.target_time_input.text()
         weekday = self.weekday_input.text()
         booking_time = self.booking_time_input.text()
+        low_flow_mode = self.low_flow_mode_checkbox.isChecked()
 
         if not (accounts and court_type and venue_name and target_time and weekday and booking_time):
             QMessageBox.warning(self, "输入错误", "请填写所有字段")
@@ -183,7 +190,7 @@ class BookingApp(QWidget):
             self.booking_thread.stop()
             self.booking_thread.wait()
 
-        self.booking_thread = BookingThread(accounts, court_type, venue_name, target_time, weekday, booking_time)
+        self.booking_thread = BookingThread(accounts, court_type, venue_name, target_time, weekday, booking_time, low_flow_mode)
         self.booking_thread.log_signal.connect(self.log_output.append)
         self.booking_thread.error_signal.connect(lambda msg: logging.error(msg))
         self.booking_thread.success_signal.connect(lambda msg: logging.info(msg))

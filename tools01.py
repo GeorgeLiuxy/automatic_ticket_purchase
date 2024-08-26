@@ -233,7 +233,7 @@ def accept_terms_and_submit_order(driver):
             EC.element_to_be_clickable((By.XPATH,
                                         "//div[@role='dialog']//button[contains(@class, 'el-button--primary') and contains(., '提交订单')]"))
         )
-        # submit_button.click() TODO ~
+        submit_button.click()
         logging.info("已点击“提交订单”按钮。")
 
         return True
