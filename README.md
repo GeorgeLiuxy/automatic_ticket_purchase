@@ -2,12 +2,6 @@
 ## 准备工作
 ### 1. 配置环境
 安装所需要的环境
-1.1 安装 Python 3.9.6
-你可以使用 Homebrew 来安装 Python 3.9.6。
-```shell
-/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-brew install python@3.9.6
-```
 
 如果还没有安装 Homebrew，可以通过以下命令安装：
 ```shell
