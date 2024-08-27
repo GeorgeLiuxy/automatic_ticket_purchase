@@ -10,12 +10,10 @@ import pytesseract
 from PIL import Image
 from selenium import webdriver
 from selenium.common.exceptions import NoSuchElementException, TimeoutException
+from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.common.desired_capabilities import DesiredCapabilities
-
-
 
 # 设置日志
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -23,22 +21,42 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 
 def setup_driver(low_flow):
     chromedriver_path = "/Volumes/software/chromedriver-mac-arm64/chromedriver"
-    option = webdriver.ChromeOptions()
+    service = Service(chromedriver_path)  # 使用Service类来指定chromedriver路径
+    options = webdriver.ChromeOptions()
+
     if low_flow:
-        capabilities = DesiredCapabilities.CHROME.copy()
-        capabilities['goog:loggingPrefs'] = {'performance': 'ALL'}
-        option.add_argument('--disable-blink-features=AutomationControlled')
-        option.add_argument('--headless')  # 如果不需要显示界面，可以使用无头模式
-        option.add_argument('--disable-gpu')
-        option.add_argument('--disable-extensions')
-        option.add_argument('--no-sandbox')
-        option.add_argument('--disable-dev-shm-usage')
-        driver = webdriver.Chrome(executable_path=chromedriver_path, options=option, desired_capabilities=capabilities)
-        driver.request_interceptor = block_request
+        # 设置日志记录的capability
+        options.set_capability('goog:loggingPrefs', {'performance': 'ALL'})
+
+        options.add_argument('--disable-blink-features=AutomationControlled')
+        options.add_argument('--headless')  # 无头模式
+        options.add_argument('--disable-gpu')
+        options.add_argument('--disable-extensions')
+        options.add_argument('--no-sandbox')
+        options.add_argument('--disable-dev-shm-usage')
+
+        driver = webdriver.Chrome(service=service, options=options)
+
+        # 启用网络拦截
+        driver.execute_cdp_cmd('Network.enable', {})
+
+        # 拦截请求并检查URL
+        def intercept_request(request):
+            url = request.get('url', '')
+
+            # 只允许加载包含"captcha"的URL，阻止其他媒体文件
+            if 'captcha' in url:
+                return
+            elif url.endswith(('.png', '.jpg', '.jpeg', '.gif', '.webp', '.mp4', '.mp3', '.ogg', '.wav', '.avi', '.mkv')):
+                driver.execute_cdp_cmd('Network.setBlockedURLs', {"urls": [url]})
+
+        driver.request_interceptor = intercept_request
+
     else:
-        option.add_experimental_option('excludeSwitches', ['enable-automation'])
-        option.add_argument('--disable-blink-features=AutomationControlled')
-        driver = webdriver.Chrome(executable_path=chromedriver_path, options=option)
+        options.add_experimental_option('excludeSwitches', ['enable-automation'])
+        options.add_argument('--disable-blink-features=AutomationControlled')
+        driver = webdriver.Chrome(service=service, options=options)
+
     return driver
 
 
@@ -233,7 +251,7 @@ def accept_terms_and_submit_order(driver):
             EC.element_to_be_clickable((By.XPATH,
                                         "//div[@role='dialog']//button[contains(@class, 'el-button--primary') and contains(., '提交订单')]"))
         )
-        submit_button.click()
+        submit_button.click()  # TODO
         logging.info("已点击“提交订单”按钮。")
 
         return True
@@ -295,23 +313,34 @@ def main(account, court_type, venue_name, target_time, weekday, booking_time, lo
     login_successful = login(account, driver)
     if login_successful:
         select_court_type(driver, court_type)
+        logging.info("加载球场列表页~~~~~~")
         time.sleep(3)  # 等待页面加载
-        select_venue(driver, venue_name)
-        time.sleep(5)  # 等待页面加载
-        logging.info("场地预定窗口已打开，正在进行时间校验")
         # 目标时间转为 datetime 对象
         target_time_obj = datetime.strptime(booking_time, "%H:%M").time()
-
         while True:
             current_time = datetime.now().time()
             logging.info(f"当前时间: {current_time}, 目标时间: {target_time_obj}")
-
-            # 比较当前时间与目标时间
-            if current_time >= target_time_obj:
+            # 计算目标时间减去当前时间的差值
+            remaining_time = datetime.combine(datetime.today(), target_time_obj) - datetime.combine(datetime.today(), current_time)
+            # 检查差值是否小于或等于1秒
+            if remaining_time <= timedelta(seconds=0):
                 logging.info("时间已到达，准备开始抢票")
                 break
-            time.sleep(1)  # 稍等片刻再刷新，避免频繁刷新
-            driver.refresh()  # 刷新页面
+            time.sleep(0.1)  # 稍等片刻再刷新，避免频繁刷新
+            # driver.refresh()  # 刷新页面
+        select_venue(driver, venue_name)
+        logging.info("场地预定窗口已打开，正在进行时间校验")
+
+        # while True:
+        #     current_time = datetime.now().time()
+        #     logging.info(f"当前时间: {current_time}, 目标时间: {target_time_obj}")
+        #
+        #     # 比较当前时间与目标时间
+        #     if current_time >= target_time_obj:
+        #         logging.info("时间已到达，准备开始抢票")
+        #         break
+        #     time.sleep(1)  # 稍等片刻再刷新，避免频繁刷新
+        #     driver.refresh()  # 刷新页面
 
         # 一旦时间符合要求，立即执行预定流程
         if run_booking_process(driver, target_time, weekday):
