@@ -29,7 +29,6 @@ class BookingThread(QThread):
     log_signal = pyqtSignal(str)
     error_signal = pyqtSignal(str)
     success_signal = pyqtSignal(str)
-    stop_signal = pyqtSignal()
 
     def __init__(self, accounts, court_type, venue_name, target_time, weekday, booking_time, low_flow_mode):
         super().__init__()
@@ -47,13 +46,18 @@ class BookingThread(QThread):
         try:
             while self._is_running:
                 schedule_booking(self.accounts, self.court_type, self.venue_name, self.target_time, self.weekday, self.booking_time, self.low_flow_mode)
+                if not self._is_running:
+                    break  # 及时退出循环
                 self.log_signal.emit("预定任务执行成功")
                 break
         except Exception as e:
             self.error_signal.emit(f"预定过程中出错: {e}")
+        finally:
+            self._is_running = False  # 确保线程退出时状态为False
 
     def stop(self):
         self._is_running = False
+
 
 
 class BookingApp(QWidget):
@@ -198,9 +202,10 @@ class BookingApp(QWidget):
 
     def closeEvent(self, event):
         if self.booking_thread and self.booking_thread.isRunning():
-            self.booking_thread.stop()
-            self.booking_thread.wait()
-        event.accept()
+            self.booking_thread.stop()  # 通知线程停止
+            logging.info("Waiting for booking thread to finish...")
+            self.booking_thread.wait(1000)  # 等待5秒，避免长时间卡住
+        event.accept()  # 接受关闭事件，关闭窗口
 
 
 def main():

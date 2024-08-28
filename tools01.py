@@ -323,7 +323,7 @@ def main(account, court_type, venue_name, target_time, weekday, booking_time, lo
             # 计算目标时间减去当前时间的差值
             remaining_time = datetime.combine(datetime.today(), target_time_obj) - datetime.combine(datetime.today(), current_time)
             # 检查差值是否小于或等于1秒
-            if remaining_time <= timedelta(seconds=0):
+            if remaining_time <= timedelta(seconds=0.1):
                 logging.info("时间已到达，准备开始抢票")
                 break
             time.sleep(0.1)  # 稍等片刻再刷新，避免频繁刷新
